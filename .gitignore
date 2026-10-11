@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# WorkBuddy 本地缓存(项目元数据/对话记忆,不要推)
+.workbuddy/
+
+# Project specific
+# 生成的仪表盘(每次运行都重新生成,不用提交)
+output/
+bill_consensus/output/
+
+# ⚠️ 用户的真实账单目录 —— 绝对不要推到 GitHub
+bills/
+账单合并工具/
+
+# 本地备份目录(删除前的临时备份,推 GitHub 时不要)
+.backup/
+
+# 解压账单时的临时目录
+bill_zip_*/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db

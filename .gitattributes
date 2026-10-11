@@ -1,0 +1,20 @@
+# 统一换行符,避免 Windows/Linux/Mac 协作出问题
+* text=auto
+
+# Windows 批处理必须是 CRLF,否则双击可能异常
+*.bat text eol=crlf
+
+# Python / 文本用 LF
+*.py  text eol=lf
+*.md  text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.csv text eol=lf
+
+# 二进制文件不做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.xlsx binary
+*.zip binary
+*.ico binary

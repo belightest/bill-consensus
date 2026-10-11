@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>账单分析仪表盘 | Bill Analyzer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #3b82f6;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --bg: #f8fafc;
+    --bg-card: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  /* 头部 */
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 28px; padding: 20px 24px;
+    background: var(--bg-card); border-radius: 16px;
+    box-shadow: var(--shadow);
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+  /* 日期筛选 */
+  .filter-bar {
+    background: var(--bg-card); padding: 16px 20px;
+    border-radius: 12px; box-shadow: var(--shadow);
+    margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .filter-bar label { font-size: 13px; color: var(--text-muted); }
+  .filter-bar input[type="date"] {
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; background: white;
+  }
+  .filter-bar button {
+    padding: 7px 16px; border: none; border-radius: 6px;
+    background: var(--primary); color: white; cursor: pointer;
+    font-size: 13px; font-weight: 500; transition: all 0.2s;
+  }
+  .filter-bar button:hover { background: var(--primary-light); }
+  .filter-bar button.reset { background: var(--text-muted); }
+  .filter-bar button.reset:hover { background: var(--text); }
+  .quick-buttons { display: flex; gap: 6px; }
+  .quick-buttons button {
+    padding: 5px 10px; background: white; color: var(--text);
+    border: 1px solid var(--border); font-size: 12px;
+  }
+  .quick-buttons button:hover { background: var(--bg); border-color: var(--primary); }
+
+  /* 指标卡片 */
+  .metrics {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px; margin-bottom: 20px;
+  }
+  .metric-card {
+    background: var(--bg-card); padding: 20px;
+    border-radius: 12px; box-shadow: var(--shadow);
+    border-left: 4px solid var(--primary);
+  }
+  .metric-card.income { border-left-color: var(--success); }
+  .metric-card.expense { border-left-color: var(--danger); }
+  .metric-card.net { border-left-color: var(--warning); }
+  .metric-card.count { border-left-color: var(--primary); }
+  .metric-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+  .metric-value { font-size: 26px; font-weight: 700; }
+  .metric-card.income .metric-value { color: var(--success); }
+  .metric-card.expense .metric-value { color: var(--danger); }
+  .metric-card.net .metric-value { color: var(--warning); }
+  .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  /* 图表区 */
+  .charts-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 20px; margin-bottom: 20px;
+  }
+  .chart-card {
+    background: var(--bg-card); padding: 20px;
+    border-radius: 12px; box-shadow: var(--shadow);
+  }
+  .chart-card h3 { font-size: 15px; margin-bottom: 16px; font-weight: 600; }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-card .chart-wrap { position: relative; height: 320px; }
+
+  /* 商户排行 */
+  .rank-list { list-style: none; }
+  .rank-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .rank-item:last-child { border-bottom: none; }
+  .rank-num {
+    width: 22px; height: 22px; background: var(--bg); border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    margin-right: 10px; flex-shrink: 0;
+  }
+  .rank-name { flex: 1; font-size: 14px; }
+  .rank-amt { font-weight: 600; color: var(--danger); }
+  .rank-bar-bg {
+    height: 4px; background: var(--bg); border-radius: 2px;
+    margin-top: 4px; overflow: hidden;
+  }
+  .rank-bar {
+    height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    transition: width 0.4s;
+  }
+
+  /* 交易明细表 */
+  .table-card { background: var(--bg-card); padding: 20px; border-radius: 12px; box-shadow: var(--shadow); }
+  .table-card h3 { font-size: 15px; margin-bottom: 16px; font-weight: 600; }
+  .table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+  .search-box {
+    padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; width: 240px;
+  }
+  .table-scroll { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: var(--bg); position: sticky; top: 0; z-index: 1; }
+  th { padding: 10px 12px; text-align: left; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover { background: var(--bg); }
+  .amount-expense { color: var(--danger); font-weight: 600; }
+  .amount-income { color: var(--success); font-weight: 600; }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 500; background: var(--bg);
+  }
+  .tag-wechat { background: #07c16020; color: #07c160; }
+  .tag-alipay { background: #1677ff20; color: #1677ff; }
+  .tag-bank { background: #f59e0b20; color: #f59e0b; }
+  .tag-image { background: #8b5cf620; color: #8b5cf6; }
+
+  .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 12px; align-items: center; }
+  .pagination button {
+    padding: 5px 12px; border: 1px solid var(--border); border-radius: 4px;
+    background: white; cursor: pointer; font-size: 12px;
+  }
+  .pagination button:hover:not(:disabled) { background: var(--bg); }
+  .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .pagination span { font-size: 12px; color: var(--text-muted); }
+
+  @media (max-width: 768px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    body { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>💰 账单分析仪表盘</h1>
+      <div class="subtitle">微信 / 支付宝 / 银行卡 自动归并分析</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:13px;color:var(--text-muted);">统计区间</div>
+      <div style="font-size:14px;font-weight:600;">{{ summary.date_range[0] }} ~ {{ summary.date_range[1] }}</div>
+    </div>
+  </div>
+
+  <!-- 日期筛选 -->
+  <div class="filter-bar">
+    <label>开始:</label>
+    <input type="date" id="startDate" value="{{ summary.date_range[0] }}">
+    <label>结束:</label>
+    <input type="date" id="endDate" value="{{ summary.date_range[1] }}">
+    <button onclick="applyFilter()">应用筛选</button>
+    <button class="reset" onclick="resetFilter()">重置</button>
+    <div class="quick-buttons">
+      <button onclick="quickFilter(7)">近7天</button>
+      <button onclick="quickFilter(30)">近30天</button>
+      <button onclick="quickFilter(90)">近90天</button>
+      <button onclick="quickFilter(365)">近一年</button>
+    </div>
+  </div>
+
+  <!-- 指标卡片 -->
+  <div class="metrics">
+    <div class="metric-card income">
+      <div class="metric-label">总收入</div>
+      <div class="metric-value">¥ {{ "%.2f"|format(summary.total_income) }}</div>
+      <div class="metric-sub">来自 {{ summary.transaction_count }} 笔交易</div>
+    </div>
+    <div class="metric-card expense">
+      <div class="metric-label">总支出</div>
+      <div class="metric-value">¥ {{ "%.2f"|format(summary.total_expense) }}</div>
+      <div class="metric-sub">日均 ¥ {{ "%.2f"|format(summary.daily_expense) }}</div>
+    </div>
+    <div class="metric-card net">
+      <div class="metric-label">净结余</div>
+      <div class="metric-value">¥ {{ "%.2f"|format(summary.net) }}</div>
+      <div class="metric-sub">
+        {% if summary.total_expense > 0 %}
+        储蓄率 {{ "%.1f"|format(summary.saving_rate) }}%
+        {% endif %}
+      </div>
+    </div>
+    <div class="metric-card count">
+      <div class="metric-label">交易笔数</div>
+      <div class="metric-value">{{ summary.transaction_count }}</div>
+      <div class="metric-sub">合并自多平台账单</div>
+    </div>
+  </div>
+
+  <!-- 图表区 -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>📊 支出分类占比</h3>
+      <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>📅 月度收支趋势</h3>
+      <div class="chart-wrap"><canvas id="monthChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>🏦 各平台收支对比</h3>
+      <div class="chart-wrap"><canvas id="sourceChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>📆 星期消费分布</h3>
+      <div class="chart-wrap"><canvas id="dowChart"></canvas></div>
+    </div>
+    <div class="chart-card full">
+      <h3>🏆 支出 TOP 10 商户</h3>
+      <ul class="rank-list" id="merchantList"></ul>
+    </div>
+  </div>
+
+  <!-- 交易明细 -->
+  <div class="table-card">
+    <h3>📋 交易明细</h3>
+    <div class="table-toolbar">
+      <input type="text" class="search-box" id="searchBox" placeholder="搜索商户/描述/分类..." oninput="renderTable()">
+      <div>
+        <label style="font-size:13px;color:var(--text-muted);">类型:</label>
+        <select id="typeFilter" onchange="renderTable()" style="padding:5px 10px;border:1px solid var(--border);border-radius:4px;font-size:13px;">
+          <option value="">全部</option>
+          <option value="expense">支出</option>
+          <option value="income">收入</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>平台</th>
+            <th>类型</th>
+            <th>分类</th>
+            <th>商户</th>
+            <th>描述</th>
+            <th>账户</th>
+            <th style="text-align:right;">金额</th>
+          </tr>
+        </thead>
+        <tbody id="txnTbody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <button onclick="changePage(-1)" id="prevBtn">上一页</button>
+      <span id="pageInfo"></span>
+      <button onclick="changePage(1)" id="nextBtn">下一页</button>
+    </div>
+  </div>
+</div>
+
+<script id="txnData" type="application/json">{{ txns_json|safe }}</script>
+<script id="summaryData" type="application/json">{{ summary_json|safe }}</script>
+
+<script>
+// 自定义 Jinja filter(在 Python 端实现)
+</script>
+
+<script>
+// ============= 数据准备 =============
+const ALL_TXNS = JSON.parse(document.getElementById('txnData').textContent);
+const SUMMARY = JSON.parse(document.getElementById('summaryData').textContent);
+
+let filteredTxns = ALL_TXNS.slice();
+let currentPage = 1;
+const PAGE_SIZE = 20;
+
+// ============= 日期筛选 =============
+function applyFilter() {
+  const s = document.getElementById('startDate').value;
+  const e = document.getElementById('endDate').value;
+  if (!s || !e) { alert('请填写开始和结束日期'); return; }
+  const start = new Date(s);
+  const end = new Date(e);
+  end.setHours(23, 59, 59, 999);
+  filteredTxns = ALL_TXNS.filter(t => {
+    const d = new Date(t.date);
+    return d >= start && d <= end;
+  });
+  refreshAll();
+}
+
+function resetFilter() {
+  filteredTxns = ALL_TXNS.slice();
+  document.getElementById('startDate').value = SUMMARY.date_range[0];
+  document.getElementById('endDate').value = SUMMARY.date_range[1];
+  refreshAll();
+}
+
+function quickFilter(days) {
+  const end = new Date(SUMMARY.date_range[1]);
+  const start = new Date(end);
+  start.setDate(start.getDate() - days + 1);
+  document.getElementById('startDate').value = start.toISOString().slice(0,10);
+  document.getElementById('endDate').value = SUMMARY.date_range[1];
+  applyFilter();
+}
+
+// ============= 图表 =============
+const COLOR_PALETTE = [
+  '#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6',
+  '#06b6d4','#ec4899','#84cc16','#f97316','#6366f1',
+  '#14b8a6','#a855f7','#eab308','#22c55e','#3b82f6',
+];
+
+const charts = {};
+
+function buildCategoryChart() {
+  const ctx = document.getElementById('categoryChart').getContext('2d');
+  const data = computeSummary().by_category;
+  charts.category = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => d.category),
+      datasets: [{
+        data: data.map(d => d.amount),
+        backgroundColor: data.map((_, i) => COLOR_PALETTE[i % COLOR_PALETTE.length]),
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { font: { size: 12 }, padding: 10 } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ¥${ctx.raw.toFixed(2)} (${(ctx.raw / data.reduce((s,d)=>s+d.amount,0) * 100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+}
+
+function buildMonthChart() {
+  const ctx = document.getElementById('monthChart').getContext('2d');
+  const data = computeSummary().by_month;
+  charts.month = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.month),
+      datasets: [
+        { label: '收入', data: data.map(d => d.income), backgroundColor: '#10b981', borderRadius: 4 },
+        { label: '支出', data: data.map(d => d.expense), backgroundColor: '#ef4444', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => '¥' + v } }
+      }
+    }
+  });
+}
+
+function buildSourceChart() {
+  const ctx = document.getElementById('sourceChart').getContext('2d');
+  const data = computeSummary().by_source;
+  const labels = {'wechat':'微信','alipay':'支付宝','bank':'银行卡','image':'截图OCR'};
+  charts.source = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => labels[d.source] || d.source),
+      datasets: [
+        { label: '收入', data: data.map(d => d.income), backgroundColor: '#10b981', borderRadius: 4 },
+        { label: '支出', data: data.map(d => d.expense), backgroundColor: '#ef4444', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => '¥' + v } } }
+    }
+  });
+}
+
+function buildDowChart() {
+  const ctx = document.getElementById('dowChart').getContext('2d');
+  const data = computeSummary().by_day_of_week;
+  charts.dow = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: data.map(d => d.dow),
+      datasets: [{
+        label: '支出',
+        data: data.map(d => d.amount),
+        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+        borderColor: '#ef4444',
+        borderWidth: 2,
+        pointBackgroundColor: '#ef4444',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { r: { beginAtZero: true } }
+    }
+  });
+}
+
+// ============= 商户排行 =============
+function renderMerchants() {
+  const data = computeSummary().top_merchants;
+  const max = data[0]?.amount || 1;
+  const html = data.map((m, i) => `
+    <li class="rank-item">
+      <div style="flex:1;">
+        <span class="rank-num">${i+1}</span>
+        <span class="rank-name">${escapeHtml(m.merchant)}</span>
+        <div class="rank-bar-bg"><div class="rank-bar" style="width:${(m.amount/max*100).toFixed(1)}%"></div></div>
+      </div>
+      <div style="text-align:right;">
+        <div class="rank-amt">¥${m.amount.toFixed(2)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${m.count} 笔</div>
+      </div>
+    </li>
+  `).join('');
+  document.getElementById('merchantList').innerHTML = html || '<li style="text-align:center;color:var(--text-muted);">暂无数据</li>';
+}
+
+// ============= 交易明细表 =============
+function renderTable() {
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  const typeFilter = document.getElementById('typeFilter').value;
+  let display = filteredTxns.filter(t => {
+    if (typeFilter && t.type !== typeFilter) return false;
+    if (search) {
+      const text = `${t.merchant} ${t.description} ${t.category}`.toLowerCase();
+      if (!text.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(display.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = display.slice(start, start + PAGE_SIZE);
+
+  const labels = {'wechat':'微信','alipay':'支付宝','bank':'银行卡','image':'截图'};
+  const tbody = document.getElementById('txnTbody');
+  tbody.innerHTML = pageData.map(t => `
+    <tr>
+      <td>${t.date.slice(0,16).replace('T',' ')}</td>
+      <td><span class="tag tag-${t.source}">${labels[t.source] || t.source}</span></td>
+      <td>${t.type === 'income' ? '<span style="color:var(--success);">收入</span>' : '<span style="color:var(--danger);">支出</span>'}</td>
+      <td>${escapeHtml(t.category)}</td>
+      <td>${escapeHtml(t.merchant || '-')}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(t.description)}">${escapeHtml(t.description || '-')}</td>
+      <td>${escapeHtml(t.account || '-')}</td>
+      <td style="text-align:right;" class="${t.amount > 0 ? 'amount-income' : 'amount-expense'}">
+        ${t.amount > 0 ? '+' : ''}¥${Math.abs(t.amount).toFixed(2)}
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('pageInfo').textContent = `第 ${currentPage} / ${totalPages} 页 · 共 ${display.length} 条`;
+  document.getElementById('prevBtn').disabled = currentPage <= 1;
+  document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  renderTable();
+}
+
+// ============= 汇总重算(基于当前筛选) =============
+function computeSummary() {
+  // 复用 Python 计算的总体,但基于 filteredTxns 动态重算
+  const income = filteredTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = filteredTxns.filter(t => t.type === 'expense').reduce((s, t) => s + Math.abs(t.amount), 0);
+
+  // 分类
+  const catMap = {};
+  filteredTxns.filter(t => t.type === 'expense').forEach(t => {
+    if (!catMap[t.category]) catMap[t.category] = { amount: 0, count: 0 };
+    catMap[t.category].amount += Math.abs(t.amount);
+    catMap[t.category].count += 1;
+  });
+  const by_category = Object.entries(catMap)
+    .map(([category, v]) => ({ category, ...v }))
+    .sort((a, b) => b.amount - a.amount);
+
+  // 平台
+  const srcMap = {};
+  filteredTxns.forEach(t => {
+    if (!srcMap[t.source]) srcMap[t.source] = { income: 0, expense: 0 };
+    if (t.amount > 0) srcMap[t.source].income += t.amount;
+    else srcMap[t.source].expense += Math.abs(t.amount);
+  });
+  const by_source = Object.entries(srcMap).map(([source, v]) => ({ source, ...v }));
+
+  // 月度
+  const monthMap = {};
+  filteredTxns.forEach(t => {
+    const m = t.date.slice(0, 7);
+    if (!monthMap[m]) monthMap[m] = { income: 0, expense: 0, count: 0 };
+    if (t.amount > 0) monthMap[m].income += t.amount;
+    else monthMap[m].expense += Math.abs(t.amount);
+    monthMap[m].count += 1;
+  });
+  const by_month = Object.entries(monthMap)
+    .map(([month, v]) => ({ month, ...v }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  // 商户
+  const merchMap = {};
+  filteredTxns.filter(t => t.type === 'expense' && t.merchant).forEach(t => {
+    if (!merchMap[t.merchant]) merchMap[t.merchant] = { amount: 0, count: 0 };
+    merchMap[t.merchant].amount += Math.abs(t.amount);
+    merchMap[t.merchant].count += 1;
+  });
+  const top_merchants = Object.entries(merchMap)
+    .map(([merchant, v]) => ({ merchant, ...v }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 10);
+
+  // 星期
+  const dowNames = ["周一","周二","周三","周四","周五","周六","周日"];
+  const dowMap = {};
+  for (let i = 0; i < 7; i++) dowMap[i] = 0;
+  filteredTxns.filter(t => t.type === 'expense').forEach(t => {
+    const dow = new Date(t.date).getDay();
+    dowMap[dow === 0 ? 6 : dow - 1] += Math.abs(t.amount);
+  });
+  const by_day_of_week = Object.entries(dowMap).map(([dow, amount]) => ({
+    dow: dowNames[parseInt(dow)], amount
+  }));
+
+  return { total_income: income, total_expense: expense, by_category, by_source, by_month, top_merchants, by_day_of_week };
+}
+
+// ============= 刷新 =============
+function refreshAll() {
+  // 销毁旧图
+  Object.values(charts).forEach(c => c.destroy());
+
+  // 重算指标卡
+  const sum = computeSummary();
+  document.querySelectorAll('.metric-value')[0].textContent = '¥ ' + sum.total_income.toFixed(2);
+  document.querySelectorAll('.metric-value')[1].textContent = '¥ ' + sum.total_expense.toFixed(2);
+  document.querySelectorAll('.metric-value')[2].textContent = '¥ ' + (sum.total_income - sum.total_expense).toFixed(2);
+  document.querySelectorAll('.metric-value')[3].textContent = filteredTxns.length;
+
+  buildCategoryChart();
+  buildMonthChart();
+  buildSourceChart();
+  buildDowChart();
+  renderMerchants();
+  currentPage = 1;
+  renderTable();
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 初始化
+refreshAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bill-consensus"
+version = "1.0.0"
+description = "本地账单合并分析工具 - 微信/支付宝/银行卡自动归并,生成可交互仪表盘"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "light" },
+]
+keywords = ["bill", "finance", "wechat", "alipay", "dashboard", "expense-tracker"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Utilities",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "openpyxl>=3.1",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+ocr = ["pytesseract>=0.3.10", "Pillow>=10.0"]
+dev = ["pytest>=7.0", "black", "ruff", "pyinstaller>=6.0"]
+
+[project.urls]
+"Homepage" = "https://github.com/light/bill-consensus"
+"Bug Tracker" = "https://github.com/light/bill-consensus/issues"
+
+[project.scripts]
+bill-consensus = "bill_consensus.main:main"
+
+[tool.setuptools]
+packages = ["bill_consensus", "bill_consensus.parsers", "bill_consensus.analyzer"]
+
+[tool.setuptools.package-data]
+bill_consensus = ["templates/*.html"]
