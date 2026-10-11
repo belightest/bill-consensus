@@ -3,8 +3,11 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Privacy](https://img.shields.io/badge/privacy-100%25_local-green)]()
+[![AI Assisted](https://img.shields.io/badge/AI-assisted%20development-blueviolet)]()
 
 > 本地账单合并分析工具 · 自动归并微信/支付宝/银行卡账单 · 输出可交互 HTML 仪表盘
+>
+> ℹ️ 本项目大部分代码在 AI 助手辅助下生成，详见文末 [AI 辅助开发声明](#-ai-辅助开发声明)。
 
 ## ⚡ 30 秒快速开始
 
@@ -36,7 +39,7 @@ python -m bill_consensus.main
 
 ```bash
 # 方式 1: 源码运行
-git clone https://github.com/your-username/bill-consensus.git
+git clone https://github.com/belightest/bill-consensus.git
 cd bill-consensus
 pip install -r requirements.txt
 
@@ -261,6 +264,24 @@ options:
 - 新的银行账单格式支持
 - 更多分类关键词
 - OCR 准确率优化
+
+## 🤖 AI 辅助开发声明
+
+**本项目大部分代码在 AI 助手的辅助下生成与迭代。** 出于透明性考虑，在此说明分工：
+
+| 环节 | 由谁完成 |
+|---|---|
+| 需求提出、场景定义、效果验收 | 项目作者（本人真实账单场景驱动） |
+| 架构设计、代码实现、测试用例 | AI 助手生成，作者审阅并调整 |
+| 文档与 README 撰写 | AI 助手生成，作者修订 |
+| 真实数据验证 | 作者用真实支付宝账单（86 笔）端到端跑通，分类准确率约 97.7% |
+
+**几点说明：**
+
+- `sample_bills/` 下的示例账单是程序生成的**假数据**，不含任何真实交易记录。
+- 代码经过真实账单回归测试（含 GBK 编码、前置免责声明行、行尾多余逗号等真实导出格式的坑）。
+- AI 生成的代码可能存在未覆盖的边界情况；若发现解析失败或分类错误，欢迎提 Issue 并附**隐去隐私后的表头截图**。
+- 若你对 AI 生成代码的质量有顾虑，建议重点审阅 `bill_consensus/parsers/` 与 `bill_consensus/analyzer/` 下的实现。
 
 ## 📄 License
 
