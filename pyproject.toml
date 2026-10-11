@@ -37,8 +37,9 @@ ocr = ["pytesseract>=0.3.10", "Pillow>=10.0"]
 dev = ["pytest>=7.0", "black", "ruff", "pyinstaller>=6.0"]
 
 [project.urls]
-"Homepage" = "https://github.com/light/bill-consensus"
-"Bug Tracker" = "https://github.com/light/bill-consensus/issues"
+"Homepage" = "https://github.com/belightest/bill-consensus"
+"Bug Tracker" = "https://github.com/belightest/bill-consensus/issues"
+"Releases" = "https://github.com/belightest/bill-consensus/releases"
 
 [project.scripts]
 bill-consensus = "bill_consensus.main:main"

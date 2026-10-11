@@ -1,11 +1,14 @@
 # Bill Consensus 💰
 
+[![Tests](https://github.com/belightest/bill-consensus/actions/workflows/tests.yml/badge.svg)](https://github.com/belightest/bill-consensus/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Privacy](https://img.shields.io/badge/privacy-100%25_local-green)]()
 [![AI Assisted](https://img.shields.io/badge/AI-assisted%20development-blueviolet)]()
 
 > 本地账单合并分析工具 · 自动归并微信/支付宝/银行卡账单 · 输出可交互 HTML 仪表盘
+>
+> 📦 **[下载 exe 版（免装 Python）](https://github.com/belightest/bill-consensus/releases/latest)**
 >
 > ℹ️ 本项目大部分代码在 AI 助手辅助下生成，详见文末 [AI 辅助开发声明](#-ai-辅助开发声明)。
 
@@ -204,6 +207,11 @@ bill-consensus/
 │       └── dashboard.html      # 仪表盘模板(Chart.js)
 ├── bills/                      # 👉 把你的账单放这里(自动创建,不进 git)
 ├── output/                     # 生成的仪表盘(自动创建,不进 git)
+├── tests/
+│   └── test_smoke.py           # 冒烟测试(pytest -q)
+├── .github/
+│   ├── workflows/tests.yml     # GitHub Actions CI
+│   └── ISSUE_TEMPLATE/         # Issue 模板(bug / 新银行格式)
 ├── sample_bills/               # 示例账单(假数据,可直接试用)
 ├── sample_data_generator.py    # 重新生成示例数据
 ├── run.bat                     # Windows 一键运行(双击/拖拽)
@@ -264,6 +272,15 @@ options:
 - 新的银行账单格式支持
 - 更多分类关键词
 - OCR 准确率优化
+
+改动前请先跑通测试:
+
+```bash
+pip install -r requirements.txt pytest
+pytest -q
+```
+
+详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 🤖 AI 辅助开发声明
 
