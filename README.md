@@ -12,6 +12,12 @@
 >
 > ℹ️ 本项目大部分代码在 AI 助手辅助下生成，详见文末 [AI 辅助开发声明](#-ai-辅助开发声明)。
 
+## 📊 效果预览
+
+[![仪表盘概览](docs/screenshot-overview.png)](docs/screenshot-full.png)
+
+<sub>👆 点击查看完整长图（含 103 条交易明细）。截图为 `sample_bills/` 示例数据，非真实账单。</sub>
+
 ## ⚡ 30 秒快速开始
 
 ```bash
@@ -130,6 +136,16 @@ python -m bill_consensus.main -o 我的报表.html
 
 日期筛选与所有图表**实时联动**。
 
+## 🖼 截图
+
+| 图 | 内容 |
+|---|---|
+| [`docs/screenshot-overview.png`](docs/screenshot-overview.png) | 概览：4 指标卡 + 4 图表 + TOP 10 商户 |
+| [`docs/screenshot-full.png`](docs/screenshot-full.png) | 完整长图：并含全部交易明细（1440×6543） |
+| [`docs/social-preview.png`](docs/social-preview.png) | 分享封面 1280×640，用于仓库 About 的 Social preview |
+
+> 截图使用 `sample_bills/` 示例数据（程序生成的假数据），不含任何真实账单。
+
 ## ❓ FAQ
 
 <details>
@@ -213,6 +229,7 @@ bill-consensus/
 │   ├── workflows/tests.yml     # GitHub Actions CI
 │   └── ISSUE_TEMPLATE/         # Issue 模板(bug / 新银行格式)
 ├── sample_bills/               # 示例账单(假数据,可直接试用)
+├── docs/                       # README 截图(概览/长图/分享封面)
 ├── sample_data_generator.py    # 重新生成示例数据
 ├── run.bat                     # Windows 一键运行(双击/拖拽)
 ├── launcher.py                 # PyInstaller 打包入口

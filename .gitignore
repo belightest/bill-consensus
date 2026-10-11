@@ -45,6 +45,9 @@ bills/
 # 解压账单时的临时目录
 bill_zip_*/
 
+# 截图工作目录(生成 docs/ 下图片的中间产物)
+.shot/
+
 # Logs
 *.log
 
