@@ -75,8 +75,10 @@ pip install pytesseract Pillow
 pip install pyinstaller
 
 # 2. 打包(约 2-5 分钟)
-python -m PyInstaller bill_consensus_exe.spec --noconfirm --clean
-#    Windows 用户也可以直接双击 build_exe.bat
+python -m PyInstaller bill_consensus_exe.spec --noconfirm
+#    Windows 用户也可以直接双击 build_exe.bat(推荐,自带清理旧产物步骤)
+#    注意: 不要加 --clean。某些环境下 Python 的 os.remove 会被重定向成
+#    "移入回收站",导致 PyInstaller 清理 build\ 时报 SHFileOperationW 失败而中断。
 
 # 3. 产物在 dist/账单合并工具.exe
 ```

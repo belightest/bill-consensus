@@ -13,7 +13,21 @@ echo.
 echo 开始打包(首次约 2-5 分钟,请耐心等待)...
 echo.
 
-python -m PyInstaller bill_consensus_exe.spec --noconfirm --clean
+REM ---- 清理旧的构建产物 ----
+REM 注意: 不要给 PyInstaller 加 --clean。
+REM 某些环境下 Python 的 os.remove 被重定向成"移入回收站",
+REM PyInstaller 清理 build\ 时会报 SHFileOperationW 失败而中断打包。
+REM 这里改用 rmdir / del 手动清理,效果等同 --clean 且不会踩坑。
+if exist build (
+    echo 清理旧的 build\ 目录...
+    rmdir /s /q build
+)
+if exist "dist\账单合并工具.exe" (
+    echo 删除旧的 exe...
+    del /q "dist\账单合并工具.exe"
+)
+
+python -m PyInstaller bill_consensus_exe.spec --noconfirm
 
 if errorlevel 1 (
     echo.

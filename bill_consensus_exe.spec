@@ -2,8 +2,13 @@
 """PyInstaller 打包配置 —— 生成单文件 exe「账单合并工具.exe」
 
 用法:
-    python -m PyInstaller bill_consensus_exe.spec --noconfirm --clean
+    python -m PyInstaller bill_consensus_exe.spec --noconfirm
 或直接双击 build_exe.bat
+
+注意:
+    - 不要加 --clean: 某些环境下 Python 的 os.remove 被重定向成"移入回收站",
+      PyInstaller 清理 build\ 时会报 SHFileOperationW 失败而中断打包。
+      需要清理时先手动删 build\ 目录,或直接用 build_exe.bat(它内置了清理步骤)。
 
 产物:
     dist/账单合并工具.exe   (单文件,无需安装 Python 即可运行)
