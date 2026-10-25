@@ -45,6 +45,32 @@
   .header h1 { font-size: 22px; font-weight: 700; }
   .header .subtitle { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
 
+  /* 离线徽章: 把"完全本地"这个卖点变成可见的事实 */
+  .offline-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px; padding: 3px 10px;
+    border: 1px solid #bbf7d0; border-radius: 999px;
+    background: #f0fdf4; color: #166534;
+    font-size: 12px; font-weight: 500;
+  }
+  .offline-badge::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+  }
+
+  /* 疑似重复交易提示与高亮 */
+  .dup-warning {
+    background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; line-height: 1.6; margin-bottom: 12px;
+  }
+  .dup-row { background: #fffbeb; }
+  .dup-row:hover { background: #fef3c7; }
+  .dup-flag {
+    display: inline-block; margin-left: 6px; padding: 0 6px;
+    border-radius: 4px; background: #fde68a; color: #92400e;
+    font-size: 11px; line-height: 18px;
+  }
+
   /* 日期筛选 */
   .filter-bar {
     background: var(--bg-card); padding: 16px 20px;
@@ -175,6 +201,7 @@
     <div>
       <h1>💰 账单分析仪表盘</h1>
       <div class="subtitle">微信 / 支付宝 / 银行卡 自动归并分析</div>
+      <div class="offline-badge">全程离线完成 · 0 字节上传</div>
     </div>
     <div style="text-align:right;">
       <div style="font-size:13px;color:var(--text-muted);">统计区间</div>
@@ -203,12 +230,16 @@
     <div class="metric-card income">
       <div class="metric-label">总收入</div>
       <div class="metric-value">¥ {{ "%.2f"|format(summary.total_income) }}</div>
-      <div class="metric-sub">来自 {{ summary.transaction_count }} 笔交易</div>
+      <div class="metric-sub">
+        来自 {{ summary.transaction_count }} 笔交易{% if mom and mom.income_change_pct is not none %} · 环比 {{ '%+.1f'|format(mom.income_change_pct) }}%{% endif %}
+      </div>
     </div>
     <div class="metric-card expense">
       <div class="metric-label">总支出</div>
       <div class="metric-value">¥ {{ "%.2f"|format(summary.total_expense) }}</div>
-      <div class="metric-sub">日均 ¥ {{ "%.2f"|format(summary.daily_expense) }}</div>
+      <div class="metric-sub">
+        日均 ¥ {{ "%.2f"|format(summary.daily_expense) }}{% if mom and mom.expense_change_pct is not none %} · 环比 {{ '%+.1f'|format(mom.expense_change_pct) }}%{% endif %}
+      </div>
     </div>
     <div class="metric-card net">
       <div class="metric-label">净结余</div>
@@ -250,9 +281,35 @@
     </div>
   </div>
 
+  {% if subscriptions %}
+  <div class="chart-card full" style="margin-top:16px;">
+    <h3>🔁 周期性固定支出（{{ subscriptions|length }} 项）</h3>
+    <ul class="rank-list">
+      {% for s in subscriptions %}
+      <li>
+        <span class="rank-name">{{ loop.index }}. {{ s.merchant }}</span>
+        <span class="rank-amount">月均 ¥ {{ "%.2f"|format(s.avg_amount) }}</span>
+        <span style="color:var(--text-muted);font-size:12px;">
+          {{ s.count }} 笔 · 累计 ¥ {{ "%.2f"|format(s.total) }}{% if s.interval_days %} · 约每 {{ s.interval_days }} 天{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:10px;">
+      合计每月约 ¥ {{ "%.2f"|format(subscriptions|sum(attribute='avg_amount')) }} —— 这些是雷打不动的固定开销
+    </div>
+  </div>
+  {% endif %}
+
   <!-- 交易明细 -->
   <div class="table-card">
     <h3>📋 交易明细</h3>
+    {% if suspected %}
+    <div class="dup-warning">
+      ⚠️ 检测到 <b>{{ suspected|length }}</b> 组疑似重复交易（同一笔钱在多个平台各记了一次）。
+      明细表中已用黄色标出，请人工核对后再决定是否删除其中一笔 —— 自动删除存在误判风险。
+    </div>
+    {% endif %}
     <div class="table-toolbar">
       <input type="text" class="search-box" id="searchBox" placeholder="搜索商户/描述/分类..." oninput="renderTable()">
       <div>
@@ -467,7 +524,7 @@ function renderTable() {
   let display = filteredTxns.filter(t => {
     if (typeFilter && t.type !== typeFilter) return false;
     if (search) {
-      const text = `${t.merchant} ${t.description} ${t.category}`.toLowerCase();
+      const text = `${t.merchant} ${t.merchant_norm || ''} ${t.description} ${t.category}`.toLowerCase();
       if (!text.includes(search)) return false;
     }
     return true;
@@ -481,12 +538,12 @@ function renderTable() {
   const labels = {'wechat':'微信','alipay':'支付宝','bank':'银行卡','image':'截图'};
   const tbody = document.getElementById('txnTbody');
   tbody.innerHTML = pageData.map(t => `
-    <tr>
+    <tr${t.dup ? ' class="dup-row" title="疑似与其他平台重复,请人工核对"' : ''}>
       <td>${t.date.slice(0,16).replace('T',' ')}</td>
       <td><span class="tag tag-${t.source}">${labels[t.source] || t.source}</span></td>
       <td>${t.type === 'income' ? '<span style="color:var(--success);">收入</span>' : '<span style="color:var(--danger);">支出</span>'}</td>
       <td>${escapeHtml(t.category)}</td>
-      <td>${escapeHtml(t.merchant || '-')}</td>
+      <td>${escapeHtml(t.merchant || '-')}${t.dup ? '<span class="dup-flag">疑似重复</span>' : ''}</td>
       <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(t.description)}">${escapeHtml(t.description || '-')}</td>
       <td>${escapeHtml(t.account || '-')}</td>
       <td style="text-align:right;" class="${t.amount > 0 ? 'amount-income' : 'amount-expense'}">

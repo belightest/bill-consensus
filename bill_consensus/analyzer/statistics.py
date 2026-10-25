@@ -142,3 +142,45 @@ def compute_summary(df: pd.DataFrame) -> dict:
         "top_merchants": top_merchants,
         "by_day_of_week": by_day_of_week,
     }
+
+
+def compute_mom(df: pd.DataFrame) -> dict:
+    """计算环比(本月 vs 上月)收支变化。
+
+    "本月"取数据中最新的月份; 若上一个月不在数据范围内则返回空 dict。
+    变化率为 None 表示上月基数为 0,无法计算百分比。
+    """
+    if df.empty:
+        return {}
+
+    months = sorted(df["date"].dt.to_period("M").unique())
+    if len(months) < 2:
+        return {}
+
+    current, previous = months[-1], months[-2]
+    if previous != current - 1:
+        return {}  # 月份不连续,环比没有意义
+
+    cur_df = df[df["date"].dt.to_period("M") == current]
+    prev_df = df[df["date"].dt.to_period("M") == previous]
+
+    cur_expense = abs(cur_df[cur_df["type"] == "expense"]["amount"].sum())
+    prev_expense = abs(prev_df[prev_df["type"] == "expense"]["amount"].sum())
+    cur_income = cur_df[cur_df["type"] == "income"]["amount"].sum()
+    prev_income = prev_df[prev_df["type"] == "income"]["amount"].sum()
+
+    def pct(now: float, before: float):
+        if before == 0:
+            return None
+        return round((now - before) / before * 100, 1)
+
+    return {
+        "current_month": str(current),
+        "prev_month": str(previous),
+        "expense_current": float(cur_expense),
+        "expense_prev": float(prev_expense),
+        "expense_change_pct": pct(cur_expense, prev_expense),
+        "income_current": float(cur_income),
+        "income_prev": float(prev_income),
+        "income_change_pct": pct(cur_income, prev_income),
+    }

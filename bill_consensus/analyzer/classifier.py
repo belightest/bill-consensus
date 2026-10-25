@@ -108,7 +108,7 @@ CATEGORY_RULES: list[tuple[str, list[str]]] = [
         "浙江财经", "浙江金融", "财经大学", "一卡通", "教材",
     ]),
     ("通讯", [
-        "话费", "充值", "流量", "宽带", "电信", "移动", "联通",
+        "话费", "流量", "宽带", "电信", "移动", "联通",
         "中国移动", "中国电信", "中国联通", "WiFi",
         "校园宽带",
     ]),
@@ -132,6 +132,15 @@ CATEGORY_RULES: list[tuple[str, list[str]]] = [
 ]
 
 
+# 关键词按长度降序预编译 —— 注释里说的"长词优先"在这里真正生效:
+# 同一段文本里,更具体的长词应该赢过短词(例如"美团外卖"优先于"美团")
+_KEYWORDS_BY_LENGTH: list[tuple[str, str]] = sorted(
+    ((kw, cat) for cat, keywords in CATEGORY_RULES for kw in keywords),
+    key=lambda item: len(item[0]),
+    reverse=True,
+)
+
+
 def classify(raw_category: str, merchant: str, description: str = "") -> str:
     """根据平台类目 + 商户名 + 描述归类"""
     text = f"{merchant} {description}".lower()
@@ -143,10 +152,9 @@ def classify(raw_category: str, merchant: str, description: str = "") -> str:
                 return cat
 
     # 优先级 2: 关键词匹配(长词优先)
-    for category, keywords in CATEGORY_RULES:
-        for kw in keywords:
-            if kw.lower() in text:
-                return category
+    for kw, category in _KEYWORDS_BY_LENGTH:
+        if kw.lower() in text:
+            return category
 
     return "其他"
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bill-consensus"
-version = "1.0.0"
+version = "1.1.0"
 description = "本地账单合并分析工具 - 微信/支付宝/银行卡自动归并,生成可交互仪表盘"
 readme = "README.md"
 license = { file = "LICENSE" }

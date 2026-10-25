@@ -58,11 +58,27 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from bill_consensus.parsers import auto_parse
     from bill_consensus.parsers.base import transactions_to_df
-    from bill_consensus.analyzer import classify_dataframe, compute_summary
+    from bill_consensus.analyzer import (
+        classify_dataframe,
+        compute_mom,
+        compute_summary,
+        dedup_files,
+        detect_subscriptions,
+        find_suspected_duplicates,
+        normalize_dataframe,
+    )
 else:
     from .parsers import auto_parse
     from .parsers.base import transactions_to_df
-    from .analyzer import classify_dataframe, compute_summary
+    from .analyzer import (
+        classify_dataframe,
+        compute_mom,
+        compute_summary,
+        dedup_files,
+        detect_subscriptions,
+        find_suspected_duplicates,
+        normalize_dataframe,
+    )
 
 
 # ============= 路径解析(支持 源码运行 / PyInstaller exe 两种模式) =============
@@ -184,7 +200,7 @@ def _extract_zip(zip_path: Path) -> list[str]:
 def run(file_paths: list[str] | None = None, output_path: str | None = None) -> str:
     """主流程:收集文件 → 解析 → 合并 → 分析 → 渲染"""
     print("=" * 60)
-    print("📊 账单合并工具 v1.1")
+    print("📊 账单合并工具 v1.1.0")
     print("=" * 60)
 
     # 1. 收集文件
@@ -194,6 +210,14 @@ def run(file_paths: list[str] | None = None, output_path: str | None = None) -> 
         print("⚠️  没有可解析的文件。")
         sys.exit(1)
     print(f"    共 {len(files)} 个文件待解析")
+
+    # 1.5 文件级去重: 同一个文件被重复丢进 bills/ 时只解析一次
+    files, skipped_files = dedup_files(files)
+    if skipped_files:
+        print(f"    跳过 {len(skipped_files)} 个内容重复的文件:")
+        for dup, original in skipped_files:
+            print(f"      - {Path(dup).name}  (与 {Path(original).name} 完全相同)")
+    print(f"    实际解析 {len(files)} 个文件")
 
     # 2. 解析 + 合并 + 分类
     print("\n[2/4] 解析账单 + 智能分类...")
@@ -209,11 +233,27 @@ def run(file_paths: list[str] | None = None, output_path: str | None = None) -> 
 
     df = transactions_to_df(transactions)
     classify_dataframe(df)
+    normalize_dataframe(df)
     print(f"    已识别 {df['category'].nunique()} 个分类")
 
     # 3. 统计
     print("\n[3/4] 计算汇总指标...")
     summary = compute_summary(df)
+    mom = compute_mom(df)
+    suspected = find_suspected_duplicates(df)
+    subscriptions = detect_subscriptions(df)
+
+    if mom:
+        print(
+            f"    环比 {mom['current_month']} vs {mom['prev_month']}: "
+            f"支出 {mom['expense_change_pct']}%"
+            if mom["expense_change_pct"] is not None
+            else f"    环比 {mom['current_month']}: 上月无支出数据"
+        )
+    if subscriptions:
+        print(f"    🔁 识别到 {len(subscriptions)} 项周期性固定支出")
+    if suspected:
+        print(f"    ⚠️  {len(suspected)} 组疑似重复交易(已在明细中标记,未自动删除)")
 
     if summary["date_range"][0] and summary["date_range"][1]:
         d_start = datetime.strptime(summary["date_range"][0], "%Y-%m-%d")
@@ -244,6 +284,12 @@ def run(file_paths: list[str] | None = None, output_path: str | None = None) -> 
     )
     template = env.get_template("dashboard.html")
 
+    # 疑似重复交易的标记键: (日期字符串, 来源, 金额绝对值)
+    dup_keys: set[tuple[str, str, float]] = set()
+    for group in suspected:
+        for item in group:
+            dup_keys.add((item["date"], item["source"], round(item["amount"], 2)))
+
     txns_json = json.dumps(
         [
             {
@@ -252,20 +298,35 @@ def run(file_paths: list[str] | None = None, output_path: str | None = None) -> 
                 "type": row["type"],
                 "category": row["category"],
                 "merchant": row["merchant"],
+                "merchant_norm": row.get("merchant_norm") or row["merchant"],
                 "description": row["description"],
                 "account": row["account"],
                 "amount": float(row["amount"]),
+                "dup": (
+                    t.strftime("%Y-%m-%d %H:%M"),
+                    row["source"],
+                    round(abs(float(row["amount"])), 2),
+                ) in dup_keys,
             }
             for t, row in zip(df["date"], df.to_dict("records"))
         ],
         ensure_ascii=False,
     )
     summary_json = json.dumps(summary, ensure_ascii=False)
+    mom_json = json.dumps(mom, ensure_ascii=False)
+    subscriptions_json = json.dumps(subscriptions, ensure_ascii=False)
+    suspected_json = json.dumps(suspected, ensure_ascii=False)
 
     html = template.render(
         summary=summary,
         summary_json=summary_json,
         txns_json=txns_json,
+        mom=mom,
+        mom_json=mom_json,
+        subscriptions=subscriptions,
+        subscriptions_json=subscriptions_json,
+        suspected=suspected,
+        suspected_json=suspected_json,
     )
     output.write_text(html, encoding="utf-8")
     print(f"    ✅ 已生成: {output.resolve()}")
